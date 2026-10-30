@@ -1,0 +1,424 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>MRFS</title>
+<style>
+:root{
+  --bg:#0d0f12; --panel:#14171c; --panel2:#1a1e25; --line:#252a33; --line2:#2f3540;
+  --text:#e8eaed; --dim:#9aa1ad; --faint:#646b78;
+  --tor:#a77bff; --tor2:#6c3fd6; --fast:#2fd3a5; --fast2:#13997a;
+  --good:#3ddc84; --mid:#e6c34a; --slow:#f08c3a; --bad:#ef5350;
+  --acc:var(--fast); --acc2:var(--fast2);
+}
+body.tor{--acc:var(--tor); --acc2:var(--tor2)}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--text);
+  font:14px/1.4 "Segoe UI Variable Text","Segoe UI",system-ui,sans-serif;overflow:hidden;user-select:none}
+button{font:inherit;color:inherit;cursor:pointer;border:0;background:none}
+input{font:inherit;color:inherit}
+.app{display:grid;grid-template-rows:auto 1fr auto;height:100%}
+
+/* header */
+header{display:flex;align-items:center;gap:14px;padding:14px 22px;border-bottom:1px solid var(--line)}
+.logo{width:44px;height:44px;border-radius:50%;box-shadow:0 0 0 1px var(--line2)}
+.brand b{font-size:19px;letter-spacing:.08em;font-weight:700}
+.brand div{font-size:11.5px;color:var(--dim);letter-spacing:.04em}
+.hspace{flex:1}
+.seg{display:flex;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:3px}
+.seg button{padding:6px 12px;border-radius:7px;color:var(--dim);font-size:12.5px;white-space:nowrap}
+.seg button.on{background:var(--panel2);color:var(--text);box-shadow:inset 0 0 0 1px var(--line2)}
+.badge{font-size:11.5px;color:var(--dim);padding:4px 9px;border:1px solid var(--line);border-radius:20px}
+.badge.warn{color:var(--slow);border-color:#5a3a1e}
+
+/* main */
+main{display:grid;grid-template-columns:360px 1fr;min-height:0}
+.left{border-right:1px solid var(--line);padding:20px;display:flex;flex-direction:column;gap:16px;overflow:auto}
+.modes{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.mode{border:1px solid var(--line);background:var(--panel);border-radius:14px;padding:14px 12px;text-align:left;transition:.15s}
+.mode:hover{border-color:var(--line2)}
+.mode .ic{width:30px;height:30px;margin-bottom:8px}
+.mode b{display:block;font-size:14px}
+.mode span{font-size:11.5px;color:var(--dim)}
+.mode.tor.on{border-color:var(--tor);background:linear-gradient(160deg,#a77bff1f,transparent 70%)}
+.mode.fast.on{border-color:var(--fast);background:linear-gradient(160deg,#2fd3a51f,transparent 70%)}
+.mode:disabled{opacity:.5;cursor:not-allowed}
+
+.power{display:flex;flex-direction:column;align-items:center;gap:12px;padding:10px 0 4px}
+.ring{position:relative;width:170px;height:170px}
+.ring>svg{position:absolute;inset:0;transform:rotate(-90deg)}
+.ring circle{fill:none;stroke-width:6}
+.ring .trk{stroke:var(--line)}
+.ring .prg{stroke:var(--acc);stroke-linecap:round;transition:stroke-dashoffset .4s}
+.pbtn{position:absolute;inset:16px;border-radius:50%;background:radial-gradient(circle at 50% 35%,#20252d,#14171c);
+  border:1px solid var(--line2);display:flex;align-items:center;justify-content:center;transition:.2s}
+.pbtn:hover{border-color:var(--acc)}
+.pbtn svg{width:52px;height:52px;stroke:var(--dim);transition:.2s}
+.on-state .pbtn{box-shadow:0 0 0 1px var(--acc),0 0 40px -6px var(--acc)}
+.on-state .pbtn svg{stroke:var(--acc)}
+.connecting .ring .prg{animation:none}
+.spin{animation:spin 1.4s linear infinite;transform-origin:center}
+@keyframes spin{to{transform:rotate(270deg)}}
+.stitle{font-size:18px;font-weight:600;text-align:center}
+.smsg{font-size:12.5px;color:var(--dim);text-align:center;min-height:36px;max-width:300px;word-wrap:break-word}
+.smsg.err{color:var(--bad)}
+.info{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:4px 14px}
+.info .row{display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid var(--line);font-size:12.5px}
+.info .row:last-child{border:0}
+.info .k{color:var(--dim)}
+.info .v{text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:200px}
+.hint{font-size:11.5px;color:var(--faint);line-height:1.5}
+
+/* right */
+.right{display:flex;flex-direction:column;min-height:0;padding:20px 22px 0}
+.rhead{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.rhead h2{margin:0;font-size:16px;font-weight:600}
+.count{color:var(--dim);font-size:12.5px}
+.tools{display:flex;gap:8px;margin-left:auto}
+.btn{display:inline-flex;align-items:center;gap:7px;padding:8px 13px;border-radius:9px;background:var(--panel);
+  border:1px solid var(--line);font-size:12.5px;transition:.15s}
+.btn:hover{border-color:var(--line2);background:var(--panel2)}
+.btn svg{width:15px;height:15px;stroke:currentColor}
+.btn.pri{background:var(--acc2);border-color:var(--acc2);color:#fff}
+.btn.pri:hover{filter:brightness(1.1)}
+.btn:disabled{opacity:.5;cursor:default}
+.filters{display:flex;gap:8px;align-items:center;margin:14px 0 12px;flex-wrap:wrap}
+.chip{padding:5px 11px;border-radius:20px;border:1px solid var(--line);font-size:12px;color:var(--dim)}
+.chip.on{border-color:var(--acc);color:var(--text);background:color-mix(in srgb,var(--acc) 12%,transparent)}
+.search{margin-left:auto;display:flex;align-items:center;gap:6px;background:var(--panel);border:1px solid var(--line);
+  border-radius:9px;padding:0 10px;width:220px}
+.search input{background:none;border:0;outline:0;padding:7px 0;width:100%;font-size:12.5px}
+.search svg{width:14px;height:14px;stroke:var(--faint)}
+.pbar{height:3px;background:var(--line);border-radius:3px;overflow:hidden;margin-top:12px;visibility:hidden}
+.pbar.show{visibility:visible}
+.pbar i{display:block;height:100%;background:var(--acc);width:0;transition:width .3s}
+
+.top3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px}
+.tcard{border:1px solid var(--line);background:var(--panel);border-radius:12px;padding:12px 14px;text-align:left;
+  min-width:0;transition:.15s;position:relative}
+.tcard:hover{border-color:var(--line2)}
+.tcard.sel{border-color:var(--acc)}
+.tcard .pl{font-size:11px;color:var(--faint);letter-spacing:.06em;text-transform:uppercase}
+.tcard .nm{font-weight:600;margin:4px 0 6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tcard .pg{font-size:22px;font-weight:600;font-variant-numeric:tabular-nums}
+.tcard .pg small{font-size:12px;color:var(--dim);font-weight:400;margin-left:2px}
+.tcard .ty{position:absolute;right:12px;top:12px}
+
+.list{flex:1;overflow:auto;min-height:0;border:1px solid var(--line);border-radius:12px 12px 0 0;border-bottom:0;background:var(--panel)}
+.item{display:grid;grid-template-columns:44px 1fr 150px 92px 90px;align-items:center;gap:10px;padding:9px 14px;
+  border-bottom:1px solid var(--line);font-size:13px;cursor:pointer}
+.item:hover{background:var(--panel2)}
+.item.sel{background:color-mix(in srgb,var(--acc) 10%,transparent);box-shadow:inset 3px 0 0 var(--acc)}
+.item.cur .nm::after{content:"● подключено";color:var(--acc);font-size:11px;margin-left:8px}
+.rank{color:var(--faint);font-variant-numeric:tabular-nums}
+.nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.flag{width:20px;height:15px;border-radius:2px;vertical-align:-2px;margin-right:9px;box-shadow:0 0 0 1px #ffffff1a;display:inline-block}
+.flag.none{background:var(--line2)}
+.tag{font-size:10.5px;padding:2px 7px;border-radius:5px;background:var(--panel2);border:1px solid var(--line2);color:var(--dim);
+  white-space:nowrap;letter-spacing:.02em}
+.ping{display:flex;align-items:center;gap:7px;font-variant-numeric:tabular-nums;justify-content:flex-end}
+.bars{display:flex;gap:2px;align-items:flex-end;height:12px}
+.bars i{width:3px;border-radius:1px;background:var(--line2)}
+.bars i:nth-child(1){height:4px}.bars i:nth-child(2){height:8px}.bars i:nth-child(3){height:12px}
+.p1 .bars i{background:var(--good)} .p1{color:var(--good)}
+.ping.unk{color:var(--faint)}
+.p2 .bars i:nth-child(-n+2){background:var(--mid)} .p2{color:var(--mid)}
+.p3 .bars i:nth-child(1){background:var(--slow)} .p3{color:var(--slow)}
+.go{opacity:0;justify-self:end;font-size:12px;padding:4px 10px;border-radius:7px;background:var(--acc2);color:#fff}
+.item:hover .go{opacity:1}
+.empty{padding:50px 20px;text-align:center;color:var(--dim)}
+.empty b{display:block;color:var(--text);font-size:15px;margin-bottom:6px}
+.more{display:block;width:100%;padding:12px;color:var(--dim);font-size:12.5px}
+.more:hover{color:var(--text)}
+
+/* footer */
+footer{display:flex;align-items:center;gap:16px;padding:9px 22px;border-top:1px solid var(--line);font-size:12px;color:var(--dim)}
+.src{display:flex;gap:12px;flex-wrap:wrap}
+.src span{display:inline-flex;align-items:center;gap:6px;cursor:default}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--faint)}
+.dot.ok{background:var(--good)} .dot.err{background:var(--slow)}
+.link{color:var(--dim);text-decoration:underline;text-underline-offset:3px;cursor:pointer}
+.link:hover{color:var(--text)}
+
+/* log drawer */
+.drawer{position:fixed;left:0;right:0;bottom:38px;height:42%;background:#0a0c0f;border-top:1px solid var(--line2);
+  transform:translateY(110%);transition:transform .2s;display:flex;flex-direction:column;z-index:5}
+.drawer.open{transform:none}
+.drawer header{padding:8px 16px;font-size:12.5px}
+.drawer pre{margin:0;padding:10px 16px;overflow:auto;flex:1;font:12px/1.55 Consolas,"Cascadia Mono",monospace;color:#b9c0cb;
+  user-select:text;white-space:pre-wrap}
+
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-thumb{background:#2a3039;border-radius:10px;border:3px solid var(--panel)}
+::-webkit-scrollbar-track{background:transparent}
+@media (max-width:1100px){.item{grid-template-columns:36px 1fr 120px 86px}.item .go{display:none}}
+</style>
+</head>
+<body>
+<div class="app">
+<header>
+  <img class="logo" src="LOGO_SRC" alt="">
+  <div class="brand"><b>MRFS</b><div>Mole Router Fast and Secure</div></div>
+  <div class="hspace"></div>
+  <span class="badge" id="adminBadge" hidden></span>
+  <div class="seg" title="Как направлять трафик">
+    <button id="rtTun" onclick="setRoute('tun')">Весь компьютер</button>
+    <button id="rtProxy" onclick="setRoute('proxy')">Системный прокси</button>
+  </div>
+</header>
+
+<main>
+  <section class="left">
+    <div class="modes">
+      <button class="mode tor" id="mTor" onclick="setKind('tor')">
+        <svg class="ic" viewBox="0 0 32 32" fill="none" stroke="#a77bff" stroke-width="2" stroke-linejoin="round">
+          <path d="M16 3l11 4v8c0 7-4.7 12-11 14C9.7 27 5 22 5 15V7z"/><circle cx="16" cy="15.5" r="5"/><circle cx="16" cy="15.5" r="1.6" fill="#a77bff"/></svg>
+        <b>Защищённое</b><span>Весь трафик через Tor</span>
+      </button>
+      <button class="mode fast" id="mFast" onclick="setKind('vless')">
+        <svg class="ic" viewBox="0 0 32 32" fill="none" stroke="#2fd3a5" stroke-width="2" stroke-linejoin="round">
+          <path d="M18 3L7 18h8l-1 11 11-15h-8z"/></svg>
+        <b>Быстрое</b><span>VLESS · Reality / TLS</span>
+      </button>
+    </div>
+
+    <div class="power" id="power">
+      <div class="ring">
+        <svg viewBox="0 0 170 170"><circle class="trk" cx="85" cy="85" r="80"/>
+          <circle class="prg" id="prg" cx="85" cy="85" r="80" stroke-dasharray="502.65" stroke-dashoffset="502.65"/></svg>
+        <button class="pbtn" id="pbtn" onclick="toggle()" title="Подключить / отключить">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><path d="M12 3v8"/><path d="M6.3 6.8a8 8 0 1 0 11.4 0"/></svg>
+        </button>
+      </div>
+      <div class="stitle" id="stitle">Не подключено</div>
+      <div class="smsg" id="smsg">Выберите режим и нажмите кнопку</div>
+    </div>
+
+    <div class="info">
+      <div class="row"><span class="k">Режим</span><span class="v" id="iMode">—</span></div>
+      <div class="row"><span class="k">Сервер</span><span class="v" id="iServer">—</span></div>
+      <div class="row"><span class="k">Маршрут</span><span class="v" id="iRoute">—</span></div>
+      <div class="row"><span class="k">Задержка</span><span class="v" id="iDelay">—</span></div>
+      <div class="row"><span class="k">Внешний IP</span><span class="v" id="iIP">—</span></div>
+      <div class="row"><span class="k">Время</span><span class="v" id="iTime">—</span></div>
+    </div>
+    <div class="hint" id="hint"></div>
+  </section>
+
+  <section class="right">
+    <div class="rhead">
+      <h2 id="listTitle">Серверы</h2><span class="count" id="count"></span>
+      <div class="tools">
+        <button class="btn" id="bPing" onclick="ping()">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg><span>Пинг</span></button>
+        <button class="btn" id="bRefresh" onclick="refresh()" title="Скачать свежие данные из репозиториев">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><path d="M20 11a8 8 0 0 0-14.9-3M4 4v4h4M4 13a8 8 0 0 0 14.9 3M20 20v-4h-4"/></svg><span>Обновить</span></button>
+      </div>
+    </div>
+    <div class="pbar" id="pbar"><i id="pfill"></i></div>
+    <div class="filters" id="filters"></div>
+    <div class="top3" id="top3"></div>
+    <div class="list" id="list"></div>
+  </section>
+</main>
+
+<footer>
+  <div class="src" id="src"></div>
+  <div class="hspace"></div>
+  <span id="upd"></span>
+  <span class="link" onclick="toggleLog()">Журнал</span>
+</footer>
+</div>
+
+<div class="drawer" id="drawer">
+  <header><b>Журнал</b><div class="hspace"></div><span class="link" onclick="toggleLog()">Закрыть</span></header>
+  <pre id="log"></pre>
+</div>
+
+<script>
+const FLAGS = /*FLAGS*/{};
+const $ = id => document.getElementById(id);
+let S = null, kind = null, servers = [], lastVer = -1, lastKind = null, selected = null,
+    filter = 'all', query = '', shown = 200, fetching = false, lastFetch = 0, logOpen = false;
+
+const FILTERS = {
+  tor: [['all','Все'],['obfs4','obfs4'],['webtunnel','webtunnel'],['vanilla','vanilla'],['snowflake','snowflake']],
+  vless: [['all','Все'],['reality','Reality'],['tls','TLS'],['tcp','TCP'],['ws','WS'],['grpc','gRPC'],['xhttp','XHTTP']]
+};
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const flag = c => FLAGS[c] ? `<img class="flag" src="${FLAGS[c]}" alt="">` : `<span class="flag none"></span>`;
+const pcls = p => p < 120 ? 'p1' : p < 280 ? 'p2' : 'p3';
+
+function setKind(k){
+  if (S && (S.conn.status === 'connecting' || S.conn.status === 'on') && S.conn.kind !== k) return;
+  if (kind === k) return;
+  kind = k; filter = 'all'; selected = null; shown = 200; servers = [];
+  document.body.classList.toggle('tor', k === 'tor');
+  $('mTor').classList.toggle('on', k === 'tor'); $('mFast').classList.toggle('on', k === 'vless');
+  $('listTitle').textContent = k === 'tor' ? 'Мосты Tor' : 'Серверы VLESS';
+  window.mrfsSetKind && mrfsSetKind(k);
+  renderFilters(); lastVer = -1; loadServers(true);
+}
+function setRoute(r){ mrfsSetRoute(r); if (S) S.settings.route = r; renderRoute(); }
+function renderRoute(){
+  const r = S ? S.settings.route : 'tun';
+  $('rtTun').classList.toggle('on', r === 'tun'); $('rtProxy').classList.toggle('on', r === 'proxy');
+}
+function renderFilters(){
+  $('filters').innerHTML = FILTERS[kind].map(([v,l]) =>
+    `<button class="chip ${filter===v?'on':''}" onclick="setFilter('${v}')">${l}</button>`).join('') +
+    `<label class="search"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+     <input id="q" placeholder="Поиск по стране…" value="${esc(query)}" oninput="query=this.value;shown=200;render()"></label>`;
+}
+function setFilter(v){ filter = v; shown = 200; renderFilters(); render(); }
+
+function visible(){
+  const q = query.trim().toLowerCase();
+  return servers.filter(s => {
+    if (filter !== 'all' && s.type !== filter && s.net !== filter) return false;
+    if (q && !(s.name + ' ' + s.country + ' ' + s.type + ' ' + s.net).toLowerCase().includes(q)) return false;
+    return true;
+  });
+}
+function tagOf(s){ return s.kind === 'tor' ? s.type : `${s.type === 'reality' ? 'Reality' : 'TLS'} · ${s.net.toUpperCase()}`; }
+function pingHTML(p, ok){ return ok ? `<span class="ping ${pcls(p)}" title="Проверен: интернет через сервер работает"><span class="bars"><i></i><i></i><i></i></span>${p} мс ✓</span>`
+  : `<span class="ping unk" title="Ещё не проверен настоящим запросом"><span class="bars"><i></i><i></i><i></i></span>${p} мс ?</span>`; }
+
+function render(){
+  const list = visible();
+  const curId = S && S.conn.status === 'on' ? S.conn.serverId : null;
+  const total = S ? (S.counts[kind + '_all'] || 0) : 0;
+  const nOK = servers.filter(s => s.ok).length;
+  $('count').textContent = (kind === 'vless' ? `проверено ✓ ${nOK}, всего отвечают ${servers.length} из ${total}` : `рабочих ${servers.length} из ${total}`) + (filter !== 'all' || query ? ` · показано ${list.length}` : '');
+  const t3 = list.slice(0, 3);
+  $('top3').innerHTML = t3.map((s, i) => `
+    <button class="tcard ${selected===s.id?'sel':''}" onclick="sel('${s.id}')" ondblclick="connect('${s.id}')">
+      <span class="tag ty">${esc(tagOf(s))}</span>
+      <div class="pl">${['Самый быстрый','2 место','3 место'][i]}</div>
+      <div class="nm">${flag(s.country)}${esc(s.name)}</div>
+      <div class="pg ${pcls(s.ping)}">${s.ping}<small>мс${s.ok && kind === 'vless' ? ' ✓ проверен' : ''}</small></div>
+    </button>`).join('');
+  $('top3').style.display = t3.length ? '' : 'none';
+  if (!list.length) {
+    const pinging = S && S.pinging;
+    $('list').innerHTML = `<div class="empty">${
+      pinging ? '<b>Проверяю серверы…</b>Рабочие появятся здесь по мере проверки — самые быстрые сверху.'
+      : servers.length ? '<b>Ничего не найдено</b>Измените фильтр или поиск.'
+      : '<b>Пока нет рабочих серверов</b>Нажмите «Обновить», чтобы скачать свежие списки, затем «Пинг».'}</div>`;
+    return;
+  }
+  const rest = list.slice(3, shown);
+  $('list').innerHTML = rest.map((s, i) => `
+    <div class="item ${selected===s.id?'sel':''} ${curId===s.id?'cur':''}" onclick="sel('${s.id}')" ondblclick="connect('${s.id}')">
+      <span class="rank">${i + 4}</span>
+      <span class="nm">${flag(s.country)}${esc(s.name)}</span>
+      <span><span class="tag">${esc(tagOf(s))}</span></span>
+      ${pingHTML(s.ping, s.kind === 'tor' || s.ok)}
+      <button class="go" onclick="event.stopPropagation();connect('${s.id}')">Подключить</button>
+    </div>`).join('') +
+    (list.length > shown ? `<button class="more" onclick="shown+=300;render()">Показать ещё (${list.length - shown})</button>` : '');
+}
+function sel(id){ selected = id; render(); }
+
+function connect(id){
+  // for Tor let MRFS pick the best obfuscated bridges itself unless the user chose one
+  if (!id) { const v = visible(); id = selected || (kind === 'vless' && v[0] && v[0].id) || ''; }
+  if (S && S.settings.route === 'tun' && !S.admin && window.mrfsElevate) {
+    // "whole computer" needs admin rights: MRFS restarts itself elevated and connects
+    mrfsElevate(kind, id || '').then(ok => { if (!ok) { $('stitle').textContent = 'Нужны права администратора';
+      $('smsg').textContent = 'Режим «Весь компьютер» работает только с правами администратора. Разрешите запрос Windows или выберите «Системный прокси».'; } });
+    return;
+  }
+  mrfsConnect(kind, id || '');
+  tick();
+}
+function toggle(){
+  if (!S) return;
+  if (S.conn.status === 'on' || S.conn.status === 'connecting') { mrfsDisconnect(); setTimeout(tick, 150); }
+  else connect(selected);
+}
+function ping(){ mrfsPing(kind); setTimeout(tick, 100); }
+function refresh(){ mrfsRefresh(); setTimeout(tick, 100); }
+
+async function loadServers(force){
+  if (fetching) return;
+  const now = Date.now();
+  if (!force && now - lastFetch < 900) return;
+  fetching = true;
+  try { servers = (await mrfsServers(kind)) || []; lastFetch = Date.now(); } finally { fetching = false; }
+  render();
+}
+
+function fmtTime(sec){
+  const h = Math.floor(sec / 3600), m = Math.floor(sec % 3600 / 60), s = sec % 60;
+  return (h ? h + ':' : '') + String(m).padStart(h ? 2 : 1, '0') + ':' + String(s).padStart(2, '0');
+}
+function renderState(){
+  const c = S.conn, st = c.status;
+  const pw = $('power');
+  pw.classList.toggle('on-state', st === 'on'); pw.classList.toggle('connecting', st === 'connecting');
+  const titles = {off: 'Не подключено', connecting: 'Подключение…', on: 'Подключено', error: 'Ошибка'};
+  $('stitle').textContent = titles[st] || st;
+  $('smsg').textContent = st === 'off' ? 'Выберите режим и нажмите кнопку'
+    : st === 'on' ? (c.warn || (c.route === 'tun' ? 'Весь трафик компьютера защищён' : 'Браузеры и приложения идут через прокси')) : (c.message || '');
+  $('smsg').classList.toggle('err', st === 'error' || (st === 'on' && !!c.warn));
+  const prg = $('prg'), L = 502.65;
+  prg.classList.toggle('spin', st === 'connecting' && !c.progress);
+  prg.style.strokeDashoffset = st === 'on' ? 0 : st === 'connecting' ? L - L * Math.max(c.progress || 0, 8) / 100 : L;
+  const active = st === 'on' || st === 'connecting';
+  $('mTor').disabled = active && c.kind !== 'tor';
+  $('mFast').disabled = active && c.kind !== 'vless';
+  $('iMode').textContent = active ? (c.kind === 'tor' ? 'Защищённое (Tor)' : 'Быстрое (VLESS)') : '—';
+  const cur = servers.find(x => x.id === c.serverId);
+  $('iServer').innerHTML = active ? (cur ? flag(cur.country) + esc(cur.name) : esc(c.server || '…')) : '—';
+  $('iRoute').textContent = st === 'on' ? (c.route === 'tun' ? 'Весь компьютер (TUN)' : 'Системный прокси') : '—';
+  $('iDelay').textContent = st !== 'on' ? '—' : c.delay ? c.delay + ' мс' : c.warn ? 'нет ответа' : 'проверяю…';
+  $('iIP').textContent = st === 'on' ? (c.ip || 'определяю…') : '—';
+  $('iTime').textContent = st === 'on' && c.since ? fmtTime(Math.max(0, Math.floor(Date.now() / 1000 - c.since))) : '—';
+  renderRoute();
+  const ab = $('adminBadge');
+  ab.hidden = !S.pingFake && !S.mitm; ab.className = 'badge warn';
+  ab.textContent = S.mitm ? '⚠ Антивирус перехватывает соединения' : 'Пинг искажён антивирусом / другим VPN';
+  ab.title = S.mitm ? 'Антивирус (например, Касперский) расшифровывает защищённые соединения и подменяет сертификаты. Протокол VLESS Reality считает это атакой и не работает. Отключите в антивирусе «Проверку защищённых соединений» или добавьте xray.exe в исключения, затем переподключитесь.' : 'Почти у всех серверов пинг 1–3 мс — так не бывает. Соединения перехватывает антивирус (проверка веб-трафика) или включённый другой VPN. Отключите другой VPN или добавьте папку MRFS в исключения антивируса.';
+  $('hint').innerHTML = kind === 'tor'
+    ? 'Tor шифрует трафик тремя узлами и скрывает ваш IP. Медленнее, зато максимально анонимно. Мосты помогают обойти блокировку Tor.' +
+      (S.torReady ? '' : '<br>При первом подключении MRFS скачает Tor (~20 МБ).')
+    : 'VLESS — быстрый зашифрованный туннель. Выберите сервер (или оставьте самый быстрый) и нажмите кнопку — подключение сразу к нему. Двойной щелчок по серверу переключает на него. Закрытие окна сворачивает MRFS в трей.';
+  // ping progress
+  const pb = $('pbar');
+  pb.classList.toggle('show', S.pinging || S.updating || S.verifying);
+  $('pfill').style.width = S.pinging && S.pingTotal ? (100 * S.pingDone / S.pingTotal) + '%' : S.verifying && S.verTotal ? (100 * S.verDone / S.verTotal) + '%' : S.updating ? '30%' : '0';
+  $('bPing').disabled = false;
+  $('bPing').querySelector('span').textContent = S.pinging ? `Пинг ${S.pingDone}/${S.pingTotal}` : S.verifying ? `Проверка ${S.verDone}/${S.verTotal}` : 'Пинг';
+  $('bRefresh').disabled = S.updating;
+  $('bRefresh').querySelector('span').textContent = S.updating ? 'Обновляю…' : 'Обновить';
+  const srcs = S.sources || [], okN = srcs.filter(s => s.ok).length, checked = srcs.some(s => s.checked);
+  $('src').innerHTML = `<span><i class="dot ${!checked ? '' : okN === srcs.length ? 'ok' : 'err'}"></i>${
+    !checked ? 'Списки серверов: проверяю…' : okN === srcs.length ? 'Списки серверов актуальны'
+    : okN ? `Списки: доступно ${okN} из ${srcs.length}, остальные из сохранённой копии` : 'Нет связи с источниками — используется сохранённая копия'}</span>`;
+  $('upd').textContent = S.lastUpdate ? `Проверено в ${S.lastUpdate} · автообновление каждые 10 мин` : '';
+}
+
+async function tick(){
+  try { S = await mrfsState(); } catch (e) { return; }
+  if (!kind) setKind(S.conn.status === 'off' ? (S.settings.kind || 'vless') : S.conn.kind);
+  if (S.conn.status !== 'off' && S.conn.status !== 'error' && S.conn.kind !== kind) setKind(S.conn.kind);
+  renderState();
+  if ((S.ver !== lastVer || kind !== lastKind) && !fetching && Date.now() - lastFetch > 900) {
+    lastVer = S.ver; lastKind = kind;
+    loadServers(true);
+  }
+  if (logOpen) { const l = await mrfsLogs(); const pre = $('log'); const atEnd = pre.scrollTop + pre.clientHeight >= pre.scrollHeight - 20;
+    pre.textContent = l.join('\n'); if (atEnd) pre.scrollTop = pre.scrollHeight; }
+}
+function toggleLog(){ logOpen = !logOpen; $('drawer').classList.toggle('open', logOpen); tick(); }
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && logOpen) toggleLog();
+  if (e.key === 'F5') { e.preventDefault(); ping(); }
+});
+document.addEventListener('contextmenu', e => { if (!e.target.closest('pre,input')) e.preventDefault(); });
+setInterval(tick, 700); tick();
+</script>
+</body>
+</html>

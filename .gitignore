@@ -1,0 +1,7 @@
+# build output
+*.exe
+*.syso
+/dist/
+# runtime data created next to MRFS.exe
+/data/
+/core/
